@@ -5,8 +5,8 @@ import { useEffect, useRef, useState } from "react";
 
 /* ========= ASSETS ========= */
 const ASSET_BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-const INTRO_AUDIO_MP3 = `${ASSET_BASE}/audio/deboraapresentacao.mp3`;
-const INTRO_AUDIO_M4A = `${ASSET_BASE}/audio/deboraapresentacao.m4a`;
+const INTRO_AUDIO_MP3 = `${ASSET_BASE}/audio/ElevenLabs_2026-01-06T12_10_54_Brittney - Meditation Voice - Soothing, Calm & Relaxing_pvc_sp120_s50_sb75_se0_b_m2.mp3`;
+const INTRO_AUDIO_M4A = `${ASSET_BASE}/audio/ElevenLabs_2026-01-06T12_10_54_Brittney-Meditation-Voice-Soothing_-Calm-_-Relaxing_pvc_sp120_s50_sb7.m4a`;
 
 /* ========= API ========= */
 const RAW_API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
@@ -124,7 +124,6 @@ export default function Page() {
     audio.onended = () => setIsSpeaking(false);
   };
 
-  /* ======== UI / Cenas ======== */
   const handleClick = () => {
     setIsClicked(true);
     setTimeout(() => playPreRecorded(true), 1100);
@@ -315,10 +314,8 @@ export default function Page() {
       recorder.start(250);
       setIsListening(true);
 
-      // VAD + ganho adaptativo
       watchSilenceAndAdaptiveGain();
 
-      // Auto-fallback inicial (1.2s): se RMS muito baixo em ns_on, reinicia com ns_off
       if (initialMonitorRef.current) clearTimeout(initialMonitorRef.current);
       initialMonitorRef.current = window.setTimeout(() => {
         try {
@@ -702,7 +699,6 @@ export default function Page() {
         </AnimatePresence>
       </div>
 
-      {/* UI do microfone */}
       {isListening && (
         <div className="absolute bottom-6 right-6 px-4 py-2 rounded-lg bg-white/20 backdrop-blur-md text-white text-sm border border-white/25 shadow">
           🎙️ Gravando… fale normalmente (não precisa gritar)
