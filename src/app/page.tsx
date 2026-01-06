@@ -46,22 +46,18 @@ export default function Page() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showOptions, setShowOptions] = useState(true);
 
-  // Mic / STT
   const [isListening, setIsListening] = useState(false);
   const [micError, setMicError] = useState("");
   const [transcript, setTranscript] = useState("");
   const [replyText, setReplyText] = useState("");
 
-  // DOM
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Gravação
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const watchdogRef = useRef<number | null>(null);
 
-  // WebAudio graph
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -72,11 +68,9 @@ export default function Page() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const processedDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
 
-  // VAD / silêncio
   const rafRef = useRef<number | null>(null);
   const silenceTimerRef = useRef<number | null>(null);
 
-  // Auto-fallback
   const activeProfileRef = useRef<"ns_on" | "ns_off">("ns_on");
   const initialMonitorRef = useRef<number | null>(null); // timeout id
   const rmsLogIdRef = useRef<number | null>(null); // logger de RMS
@@ -93,7 +87,6 @@ export default function Page() {
     };
   }, [isClicked]);
 
-  /* ======== Áudio / TTS ======== */
   const playPreRecorded = async (preferM4A = false) => {
     if (!audioRef.current) return;
     setIsSpeaking(true);
@@ -166,10 +159,8 @@ export default function Page() {
     }, 800);
   };
 
-  /* ======== Mic com auto-detecção de emulador ======== */
   const startMicFlow = async () => {
     const emu = await isEmulatorMic();
-    // Em emulador, comece já com NS/EC desligados (ns_off)
     await startRecording(emu ? "ns_off" : "ns_on");
   };
 
@@ -245,7 +236,6 @@ export default function Page() {
       comp.release.value = 0.25;
       compRef.current = comp;
 
-      // Ganho: mais alto com ns_off/Android
       const preGain = ctx.createGain();
       preGain.gain.value = profile === "ns_off" || IS_ANDROID ? 3.0 : 2.0;
       preGainRef.current = preGain;
@@ -266,7 +256,6 @@ export default function Page() {
       const dest = ctx.createMediaStreamDestination();
       processedDestRef.current = dest;
 
-      // graph
       source.connect(highpass);
       highpass.connect(comp);
       comp.connect(preGain);
@@ -274,7 +263,6 @@ export default function Page() {
       limiter.connect(analyser);
       limiter.connect(dest);
 
-      // MediaRecorder
       const mimeCandidates = [
         "audio/webm;codecs=opus",
         "audio/webm",
@@ -293,10 +281,8 @@ export default function Page() {
         if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
-      // SEM gate: sempre envia
       const origOnStop = recorder.onstop;
       recorder.onstop = () => {
-        // encerra logger RMS
         if (rmsLogIdRef.current) {
           window.clearInterval(rmsLogIdRef.current);
           rmsLogIdRef.current = null;
@@ -329,12 +315,10 @@ export default function Page() {
         } catch {}
       }, 1200);
 
-      // watchdog (30s)
       watchdogRef.current = window.setTimeout(() => {
         if (mediaRecorderRef.current?.state === "recording") stopRecording();
       }, 30_000);
 
-      // Logger de RMS (debug em emulador)
       if (rmsLogIdRef.current) {
         window.clearInterval(rmsLogIdRef.current);
         rmsLogIdRef.current = null;
@@ -415,7 +399,6 @@ export default function Page() {
     audioCtxRef.current = null;
   };
 
-  /* ======== VAD + ganho adaptativo ======== */
   const watchSilenceAndAdaptiveGain = () => {
     const analyser = analyserRef.current;
     const preGain = preGainRef.current;
@@ -438,7 +421,6 @@ export default function Page() {
       }
       const rms = Math.sqrt(sum / buffer.length);
 
-      // Ganho adaptativo
       const currentGain = preGain.gain.value;
       const desiredGain = clamp(
         currentGain * (TARGET_RMS / Math.max(0.00015, rms)),
@@ -448,7 +430,6 @@ export default function Page() {
       preGain.gain.value =
         currentGain + (desiredGain - currentGain) * ADAPT_RATE;
 
-      // VAD permissivo
       const SILENCE_THRESHOLD = 0.0035;
       const MIN_RECORD_MS = 900;
       const SILENCE_HOLD_MS = 3200;
@@ -489,8 +470,7 @@ export default function Page() {
 
   const clamp = (v: number, lo: number, hi: number) =>
     Math.min(hi, Math.max(lo, v));
-
-  /* ======== Pipeline -> /api/conversation ======== */
+  
   const processRecordedAudio = async () => {
     try {
       const chunks = audioChunksRef.current;
@@ -520,7 +500,6 @@ export default function Page() {
       if (heard) setTranscript(heard);
       if (reply) setReplyText(reply);
 
-      // ⚠️ Não bloqueia mais: apenas informa se o STT achou ruído/música
       if (
         !heard ||
         /\((?:intro\s+)?music\)|\(electronic sounds?\)|\(electronic crackling\)/i.test(
@@ -532,7 +511,6 @@ export default function Page() {
             ? "O STT achou que era ruído (comum no emulador). Se puder, teste num aparelho físico ou use fone com microfone."
             : "O STT achou que era ruído. Troquei para perfil otimizado automaticamente; tente falar normalmente."
         );
-        // segue fluxo normal
       }
 
       const type = res.headers.get("Content-Type") || "";
@@ -558,10 +536,8 @@ export default function Page() {
     }
   };
 
-  // 🔽 renderização
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-      {/* Fundo */}
       <img
         src="/fundo.jpg"
         alt="Loja de suplementos"
@@ -570,7 +546,6 @@ export default function Page() {
       <div className="absolute inset-0 bg-black/20 backdrop-blur-md" />
 
       <div className="absolute inset-0 flex items-end justify-center">
-        {/* Intro */}
         <AnimatePresence>
           {!isClicked && (
             <motion.div
@@ -601,7 +576,6 @@ export default function Page() {
           )}
         </AnimatePresence>
 
-        {/* Cena principal */}
         <AnimatePresence>
           {isClicked && (
             <motion.div
@@ -631,8 +605,8 @@ export default function Page() {
                     playsInline
                     disablePictureInPicture
                     disableRemotePlayback
-                    width={550}
-                    height={550}
+                    width={1500}
+                    height={100}
                     className="object-contain translate-y-[10%]"
                     onContextMenu={(e) => e.preventDefault()}
                     style={{
@@ -647,7 +621,6 @@ export default function Page() {
                 </div>
               </div>
 
-              {/* Opções */}
               <AnimatePresence>
                 {showOptions && (
                   <motion.div
@@ -710,7 +683,6 @@ export default function Page() {
         </div>
       )}
 
-      {/* Debug opcional */}
       {!!transcript && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-4 text-white/80 text-xs">
           Você disse: “{transcript}”
@@ -722,13 +694,11 @@ export default function Page() {
         </div>
       )}
 
-      {/* Player de áudio */}
       <audio ref={audioRef} preload="auto">
         <source src={INTRO_AUDIO_MP3} type="audio/mpeg" />
         <source src={INTRO_AUDIO_M4A} type="audio/mp4" />
       </audio>
 
-      {/* Escala responsiva */}
       <style jsx global>{`
         .intro-character {
           transform-origin: bottom center;
